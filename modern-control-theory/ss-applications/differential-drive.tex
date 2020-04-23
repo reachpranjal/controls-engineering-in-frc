@@ -139,25 +139,27 @@ with a motion profile instead of a \gls{step input} for reproducibility.
 
 The model in theorem \ref{thm:diff_drive_velocity_ss_model} is linear, but only
 includes the velocity dynamics, not the dynamics of the drivetrain's global
-pose. The change in global pose is defined by these three equations.
+pose. Let $c = \cos\theta$, $s = \sin\theta$, and
+$\omega = \frac{v_r - v_l}{2r_b}$. The change in global pose is defined by these
+three equations.
 \begin{align*}
-  \dot{x} &= \frac{v_l + v_r}{2}\cos\theta = \frac{v_r}{2}\cos\theta +
-    \frac{v_l}{2}\cos\theta \\
-  \dot{y} &= \frac{v_l + v_r}{2}\sin\theta = \frac{v_r}{2}\sin\theta +
-    \frac{v_l}{2}\sin\theta \\
-  \dot{\theta} &= \frac{v_r - v_l}{2r_b} = \frac{v_r}{2r_b} - \frac{v_l}{2r_b}
+  \dot{x} &= \frac{v_l + v_r}{2}\cos\theta = \frac{v_r}{2}c + \frac{v_l}{2}c \\
+  \dot{y} &= \frac{v_l + v_r}{2}\sin\theta = \frac{v_r}{2}s + \frac{v_l}{2}s \\
+  \dot{c} &= -s\omega = -\frac{v_r - v_l}{2r_b}s \\
+  \dot{s} &= c\omega = \frac{v_r - v_l}{2r_b}c \\
 \end{align*}
 
 Next, we'll augment the linear subspace's state with the global pose $x$, $y$,
 and $\theta$. Here's the model as a vector function where
-$\mtx{x} = \begin{bmatrix} x & y & \theta & v_l & v_r \end{bmatrix}^T$ and
-$\mtx{u} = \begin{bmatrix} V_l & V_r \end{bmatrix}^T$.
+$\mtx{x} = \begin{bmatrix} x & y & \cos\theta & \sin\theta & v_l & v_r \end{bmatrix}^T$
+and $\mtx{u} = \begin{bmatrix} V_l & V_r \end{bmatrix}^T$.
 \begin{equation}
   f(\mtx{x}, \mtx{u}) =
   \begin{bmatrix}
-    \frac{v_r}{2}\cos\theta + \frac{v_l}{2}\cos\theta \\
-    \frac{v_r}{2}\sin\theta + \frac{v_l}{2}\sin\theta \\
-    \frac{v_r}{2r_b} - \frac{v_l}{2r_b} \\
+    \frac{v_r}{2}c + \frac{v_l}{2}c \\
+    \frac{v_r}{2}s + \frac{v_l}{2}s \\
+    -\frac{v_r - v_l}{2r_b}s \\
+    \frac{v_r - v_l}{2r_b}c \\
     \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_1 v_l +
       \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_3 v_r +
       \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_2 V_l +
@@ -185,18 +187,18 @@ drive. To create an LQR, we need to linearize equation
 \begin{align*}
   \frac{\partial f(\mtx{x}, \mtx{u})}{\partial\mtx{x}} &=
   \begin{bmatrix}
-    0 & 0 & -\frac{v_l + v_r}{2}\sin\theta & \frac{1}{2}\cos\theta &
-      \frac{1}{2}\cos\theta \\
-    0 & 0 & \frac{v_l + v_r}{2}\cos\theta & \frac{1}{2}\sin\theta &
-      \frac{1}{2}\sin\theta \\
-    0 & 0 & 0 & -\frac{1}{2r_b} & \frac{1}{2r_b} \\
-    0 & 0 & 0 & \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_1 &
+    0 & 0 & \frac{v_l + v_r}{2} & 0 & \frac{1}{2}c & \frac{1}{2}c \\
+    0 & 0 & 0 & \frac{v_l + v_r}{2} & \frac{1}{2}s & \frac{1}{2}s \\
+    0 & 0 & 0 & -\frac{v_r - v_l}{2r_b} & \frac{1}{2r_b}s & -\frac{1}{2r_b}s \\
+    0 & 0 & \frac{v_r - v_l}{2r_b} & 0 & -\frac{1}{2r_b}c & \frac{1}{2r_b}c \\
+    0 & 0 & 0 & 0 & \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_1 &
       \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_3 \\
-    0 & 0 & 0 & \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_1 &
+    0 & 0 & 0 & 0 & \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_1 &
       \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_3
   \end{bmatrix} \\
   \frac{\partial f(\mtx{x}, \mtx{u})}{\partial\mtx{u}} &=
   \begin{bmatrix}
+    0 & 0 \\
     0 & 0 \\
     0 & 0 \\
     0 & 0 \\
@@ -217,11 +219,11 @@ Therefore,
     \begin{array}{ccc}
       \mtx{x} =
       \begin{bmatrix}
-        x & y & \theta & v_l & v_r
+        x & y & \cos\theta & \sin\theta & v_l & v_r
       \end{bmatrix}^T &
       \mtx{y} =
       \begin{bmatrix}
-        \theta & v_l & v_r
+        \cos\theta & \sin\theta & v_l & v_r
       \end{bmatrix}^T &
       \mtx{u} =
       \begin{bmatrix}
@@ -234,16 +236,18 @@ Therefore,
     \begin{array}{ll}
       \mtx{A} =
       \begin{bmatrix}
-        0 & 0 & -vs & \frac{1}{2}c & \frac{1}{2}c \\
-        0 & 0 & vc & \frac{1}{2}s & \frac{1}{2}s \\
-        0 & 0 & 0 & -\frac{1}{2r_b} & \frac{1}{2r_b} \\
-        0 & 0 & 0 & \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_1 &
+        0 & 0 & v & 0 & \frac{1}{2}c & \frac{1}{2}c \\
+        0 & 0 & 0 & v & \frac{1}{2}s & \frac{1}{2}s \\
+        0 & 0 & 0 & -\omega & \frac{1}{2r_b}s & -\frac{1}{2r_b}s \\
+        0 & 0 & \omega & 0 & -\frac{1}{2r_b}c & \frac{1}{2r_b}c \\
+        0 & 0 & 0 & 0 & \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_1 &
           \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_3 \\
-        0 & 0 & 0 & \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_1 &
+        0 & 0 & 0 & 0 & \left(\frac{1}{m} - \frac{r_b^2}{J}\right) C_1 &
           \left(\frac{1}{m} + \frac{r_b^2}{J}\right) C_3
       \end{bmatrix} &
       \mtx{B} =
       \begin{bmatrix}
+        0 & 0 \\
         0 & 0 \\
         0 & 0 \\
         0 & 0 \\
@@ -254,19 +258,20 @@ Therefore,
       \end{bmatrix} \\
       \mtx{C} =
       \begin{bmatrix}
-        0 & 0 & 1 & 0 & 0 \\
-        0 & 0 & 0 & 1 & 0 \\
-        0 & 0 & 0 & 0 & 1
+        0 & 0 & 1 & 0 & 0 & 0 \\
+        0 & 0 & 0 & 1 & 0 & 0 \\
+        0 & 0 & 0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 0 & 0 & 1
       \end{bmatrix} &
-      \mtx{D} = \mtx{0}_{3 \times 2}
+      \mtx{D} = \mtx{0}_{4 \times 2}
     \end{array}
   \end{equation}
 
-  where $v = \frac{v_l + v_r}{2}$, $c = \cos\theta$, $s = \sin\theta$,
-  $C_1 = -\frac{G_l^2 K_t}{K_v R r^2}$, $C_2 = \frac{G_l K_t}{Rr}$,
-  $C_3 = -\frac{G_r^2 K_t}{K_v R r^2}$, and $C_4 = \frac{G_r K_t}{Rr}$. The
-  constants $C_1$ through $C_4$ are from the derivation in section
-  \ref{sec:differential_drive}.
+  where $v = \frac{v_l + v_r}{2}$, $\omega = \frac{v_r - v_l}{2r_b}$,
+  $c = \cos\theta$, $s = \sin\theta$, $C_1 = -\frac{G_l^2 K_t}{K_v R r^2}$,
+  $C_2 = \frac{G_l K_t}{Rr}$, $C_3 = -\frac{G_r^2 K_t}{K_v R r^2}$, and
+  $C_4 = \frac{G_r K_t}{Rr}$. The constants $C_1$ through $C_4$ are from the
+  derivation in section \ref{sec:differential_drive}.
 \end{theorem}
 
 We can also use this in an extended Kalman filter as is since the measurement
